@@ -58,3 +58,8 @@ commands
 `unmark [name]`
 >remove a mark from the list of marks
 
+install
+-------
+
+1. Download `markjump.ps1`
+2. Add this to your `$profile`: "`. .\markjump.ps1`"
