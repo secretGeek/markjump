@@ -4,31 +4,56 @@
 #
 # MIT License.
 # dot this file (for example add this to your $profile: ". .\markjump.ps1")
+#
+# USAGE
+# mark "fred"   <-- mark the current location as "fred"
+# marks         <-- list all marks.
+# jump "fred"   <-- cd to the location denoted by fred
+# unmark "fred" <-- remove "fred" from the list of marks.
+#
+# "Note that marks are persisted across sessions. They are permanenty!"
 
 $marks = $null;
 # four shell functions jump, mark, unmark, and marks:
+
+# jump to a folder
 function jump($name) {
-  # jump to a folder
+  if ($name -eq $null) {
+    marks;
+    # also display help.
+    return;
+  }
+
   $target = $marks[$name];
   if ($target -ne $null -and (test-path $target)) { set-location $target;}
 }
 
+# mark the current folder...
 function mark([string]$name) {
-   # mark the current folder...
-  if ($name -ne "") {
-    get-location | % { $marks[$name] = $_.Path }
+  if ($name -eq "") {
+    marks;
+    # also display help.
+    return;
   }
+
+  get-location | % { $marks[$name] = $_.Path }
   save-marks;
 }
 
+# unmark the current folder
 function unmark([string]$name) {
-  # unmarks the current folder
+  if ($name -eq "") {
+    marks;
+    # also display help.
+    return;
+  }
+
   $marks.Remove($name);
   save-marks;
 }
 
 function marks() {
-  # list all marks
+  # list all marks (TODO: if no marks, maybe display help.
   Load-marks;
   $marks.GetEnumerator() | % { [string]$_.name + " -> " + [string]$_.value }
 }
@@ -37,16 +62,32 @@ function marks() {
 
 # save-marks: these are persisted the the marks.json file
 function Local:save-marks() {
-  ConvertTo-Json $marks > $env:localappdata"\marks.json"
-}
-# initial the $marks variable from the marks.json file (or create the file if necessary)
-function Local:Load-marks() {
- if ((test-path $env:localappdata"\marks.json") -eq $false) { 
-    $script:marks = @{};
-    save-marks;
+  if (Get-Command "ConvertTo-Json" -errorAction SilentlyContinue) {
+    ConvertTo-Json $marks > $env:localappdata"\marks.json"
+  } else {
+    #"can't save it there..."
+	$marks | export-clixml $env:localappdata"\marks.clixml"
   }
-  $script:marks = ((Get-Content $env:localappdata"\marks.json") -join "`n" | ConvertFrom-Json)
-  $script:marks = ConvertTo-Hash $script:marks
+}
+# initialize the $marks variable from the marks.json file (or create the file if necessary)
+function Local:Load-marks() {
+ if (Get-Command "ConvertTo-Json" -errorAction SilentlyContinue) {
+   if ((test-path $env:localappdata"\marks.json") -eq $false) { 
+      $script:marks = @{};
+      save-marks;
+   }
+   $script:marks = ((Get-Content $env:localappdata"\marks.json") -join "`n" | ConvertFrom-Json)
+   $script:marks = ConvertTo-Hash $script:marks
+   
+  } else {
+
+    if ((test-path $env:localappdata"\marks.clixml") -eq $false) { 
+      $script:marks = @{};
+      save-marks;
+   }
+   $script:marks = (import-clixml $env:localappdata"\marks.clixml")
+   
+  }
   if ($script:marks -eq $null) {
     $script:marks = @{};
   }
@@ -62,6 +103,9 @@ function Local:ConvertTo-Hash($i) {
     } 
     $hash;
 }
+
+### TODO: Display help.
+## help should include details of recommended aliases 
 
 Local:Load-marks;
 
