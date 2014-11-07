@@ -1,17 +1,17 @@
 #
-# (Leon Bambrick's Powershell implementation of) Mark & Jump!
-# inspired by this: http://jeroenjanssens.com/2013/08/16/quickly-navigate-your-filesystem-from-the-command-line.html
-#
-# MIT License.
-# dot this file (for example add this to your $profile: ". .\markjump.ps1")
-#
-# USAGE
-# mark "fred"   <-- mark the current location as "fred"
-# marks         <-- list all marks.
-# jump "fred"   <-- cd to the location denoted by fred
-# unmark "fred" <-- remove "fred" from the list of marks.
-#
-# "Note that marks are persisted across sessions. They are permanenty!"
+## (Leon Bambrick's Powershell implementation of) Mark & Jump!
+## inspired by this: http://jeroenjanssens.com/2013/08/16/quickly-navigate-your-filesystem-from-the-command-line.html
+## 
+## MIT License.
+## dot this file (for example add this to your $profile: ". .\markjump.ps1")
+## 
+## USAGE
+## > mark "fred"   <-- mark the current location as "fred"
+## > marks         <-- list all marks.
+## > jump "fred"   <-- cd to the location denoted by fred
+## > unmark "fred" <-- remove "fred" from the list of marks.
+## 
+## "Note that marks are persisted across sessions. They are permanenty!"
 
 $marks = $null;
 # four shell functions jump, mark, unmark, and marks:
@@ -36,7 +36,13 @@ function mark([string]$name) {
     return;
   }
 
-  get-location | % { $marks[$name] = $_.Path }
+  $target = $marks[$name];
+  if ($target -eq $null) {  
+	get-location | % { $marks[$name] = $_.Path }
+  } else {
+    'mark already exists. need to unmark first. or maybe you want to jump?'
+	return;
+  }
   save-marks;
 }
 
@@ -54,8 +60,7 @@ function unmark([string]$name) {
 
 function marks() {
   # list all marks (TODO: if no marks, maybe display help.
-  Load-marks;
-  $marks.GetEnumerator() | % { [string]$_.name + " -> " + [string]$_.value }
+  $marks.GetEnumerator() | sort Name | ft -autosize
 }
 
 # 3 Local functions... save-marks, Load-marks and ConvertTo-Hash
@@ -69,6 +74,7 @@ function Local:save-marks() {
 	$marks | export-clixml $env:localappdata"\marks.clixml"
   }
 }
+
 # initialize the $marks variable from the marks.json file (or create the file if necessary)
 function Local:Load-marks() {
  if (Get-Command "ConvertTo-Json" -errorAction SilentlyContinue) {
@@ -104,11 +110,18 @@ function Local:ConvertTo-Hash($i) {
     $hash;
 }
 
-### TODO: Display help.
-## help should include details of recommended aliases 
+## markjump_help    -- this output
+function markjump_help() {
+ $x = (& { $myInvocation.ScriptName })
+ type $x | ? { $_ -like "## *"}  | % { $_.TrimStart("#") }
+}
 
 Local:Load-marks;
 
+## Recommended aliases:
+##   m -> mark
+##   j -> jump
+##   um -> unmark
 set-alias m mark
 set-alias um unmark
 set-alias j jump
